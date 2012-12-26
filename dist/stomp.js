@@ -264,7 +264,7 @@
       }
     };
 
-    Client.prototype.send = function(destination, headers, body) {
+    Client.prototype.send = function(destination, headers, body, callback) {
       if (headers == null) {
         headers = {};
       }
@@ -272,6 +272,9 @@
         body = '';
       }
       headers.destination = destination;
+      if (callback) {
+        this.subscriptions[headers['reply-to']] = callback;
+      }
       return this._transmit("SEND", headers, body);
     };
 
