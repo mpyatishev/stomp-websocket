@@ -19,7 +19,7 @@ Byte =
   # NULL byte (octet 0)
   NULL: '\x00'
 
-# Representation of a [STOMP frame](http://stomp.github.com/stomp-specification-1.1.html#STOMP_Frames)
+# ##[STOMP Frame](http://stomp.github.com/stomp-specification-1.1.html#STOMP_Frames) Class
 class Frame
   # Frame constructor
   constructor: (@command, @headers={}, @body='') ->
@@ -84,7 +84,7 @@ class Frame
     frame = new Frame(command, headers, body)
     return frame.toString() + Byte.NULL
 
-# This class represent the STOMP client.
+# ##STOMP Client Class
 #
 # All STOMP protocol is exposed as methods of this class (`connect()`,
 # `send()`, etc.)
@@ -143,7 +143,7 @@ class Client
         # We wait twice the TTL to be flexible on window's setInterval calls
         if delta > ttl * 2
           @debug? "did not receive server activity for the last #{delta}ms"
-          @_cleanUp()
+          @ws.close()
       , ttl)
 
   # [CONNECT Frame](http://stomp.github.com/stomp-specification-1.1.html#CONNECT_or_STOMP_Frame)
@@ -203,6 +203,7 @@ class Client
     @ws.onclose   = =>
       msg = "Whoops! Lost connection to #{@ws.url}"
       @debug?(msg)
+      @_cleanUp()
       errorCallback?(msg)
     @ws.onopen    = =>
       @debug?('Web Socket Opened...')
@@ -221,13 +222,13 @@ class Client
     # Discard the onclose callback to avoid calling the errorCallback when
     # the client is properly disconnected.
     @ws.onclose = null
+    @ws.close()
     @_cleanUp()
     disconnectCallback?()
 
   # Clean up client resources when it is disconnected or the server did not
   # send heart beats in a timely fashion
   _cleanUp: () ->
-    @ws.close()
     @connected = false
     window?.clearInterval(@pinger) if @pinger
     window?.clearInterval(@ponger) if @ponger
@@ -299,6 +300,7 @@ class Client
     headers.subscription = subscription
     @_transmit "NACK", headers
 
+# ##The `Stomp` Object
 Stomp =
 
   # Version of the JavaScript library. This can be used to check what has
@@ -342,8 +344,15 @@ Stomp =
   # marshall/unmarshall frames
   Frame: Frame
 
+# ##Make the `Stomp` object accessible depends on the context
+
+# export in the Web Browser
 if window?
   window.Stomp = Stomp
-else
+# or as module (for tests only)
+else if exports?
   exports.Stomp = Stomp
   Stomp.WebSocketClass = require('./test/server.mock.js').StompServerMock
+# or in the current object (e.g. a WebWorker)
+else
+  self.Stomp = Stomp
